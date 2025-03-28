@@ -4,4 +4,4 @@ version=v1.5.4
 versionCode=105004
 author=Frax3r
 description=A flash and forget attempt at simonpunk's susfs.
-
+updateJson=https://raw.githubusercontent.com/utkustnr/minimal-susfs/refs/heads/main/update.json
