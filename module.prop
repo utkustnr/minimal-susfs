@@ -1,7 +1,7 @@
 id=minimal-susfs
 name=Essential SUSFS Tweaks
-version=v1.5.4
-versionCode=105004
+version=v1.5.7
+versionCode=105070
 author=Frax3r
 description=A flash and forget attempt at simonpunk's susfs.
 updateJson=https://raw.githubusercontent.com/utkustnr/minimal-susfs/refs/heads/main/update.json

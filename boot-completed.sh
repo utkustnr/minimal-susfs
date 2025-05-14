@@ -16,10 +16,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-# wait until storage is decrypted
-while [ ! -d "/storage/emulated/0/Android" ]; do
-    sleep 1
-done
+sleep 10
 
 # binary locations
 SUSFS_BIN="/data/adb/ksu/bin/ksu_susfs"
@@ -34,7 +31,10 @@ $SUSFS_BIN add_sus_mount /system/etc/hosts
 $SUSFS_BIN add_try_umount /system/etc/hosts 1
 
 # hide modules.img
-for device in $(ls -Ld /proc/fs/jbd2/loop*8 | sed 's|/proc/fs/jbd2/||; s|-8||'); do
+for path in /proc/fs/jbd2/loop*8; do
+    [ -e "$path" ] || continue
+    device="${path##*/}"
+    device="${device%-8}"
     $SUSFS_BIN add_sus_path "/proc/fs/jbd2/${device}-8"
     $SUSFS_BIN add_sus_path "/proc/fs/ext4/${device}"
 done
@@ -43,24 +43,27 @@ done
 P1="/data/adb/modules/zygisk_lsposed/bin"
 P2="/system/apex/com.android.art/bin"
 P3="/apex/com.android.art/bin"
-[ -f $P1/dex2oat ] && \
-    $SUSFS_BIN add_sus_mount $P1/dex2oat && \
-    $SUSFS_BIN add_sus_mount $P1/dex2oat32 && \
+if [ -f $P1/dex2oat ]; then
+    $SUSFS_BIN add_sus_mount $P1/dex2oat
+    $SUSFS_BIN add_sus_mount $P1/dex2oat32
     $SUSFS_BIN add_sus_mount $P1/dex2oat64
-[ -f $P2/dex2oat ] && \
-    $SUSFS_BIN add_sus_mount $P2/dex2oat && \
-    $SUSFS_BIN add_sus_mount $P2/dex2oat32 && \
-    $SUSFS_BIN add_sus_mount $P2/dex2oat64 && \
-    $SUSFS_BIN add_try_umount $P2/dex2oat 1 && \
-    $SUSFS_BIN add_try_umount $P2/dex2oat32 1 && \
+fi
+if [ -f $P2/dex2oat ]; then
+    $SUSFS_BIN add_sus_mount $P2/dex2oat
+    $SUSFS_BIN add_sus_mount $P2/dex2oat32
+    $SUSFS_BIN add_sus_mount $P2/dex2oat64
+    $SUSFS_BIN add_try_umount $P2/dex2oat 1
+    $SUSFS_BIN add_try_umount $P2/dex2oat32 1
     $SUSFS_BIN add_try_umount $P2/dex2oat64 1
-[ -f $P3/dex2oat ] && \
-    $SUSFS_BIN add_sus_mount $P3/dex2oat && \
-    $SUSFS_BIN add_sus_mount $P3/dex2oat32 && \
-    $SUSFS_BIN add_sus_mount $P3/dex2oat64 && \
-    $SUSFS_BIN add_try_umount $P3/dex2oat 1 && \
-    $SUSFS_BIN add_try_umount $P3/dex2oat32 1 && \
+fi
+if [ -f $P3/dex2oat ]; then
+    $SUSFS_BIN add_sus_mount $P3/dex2oat
+    $SUSFS_BIN add_sus_mount $P3/dex2oat32
+    $SUSFS_BIN add_sus_mount $P3/dex2oat64
+    $SUSFS_BIN add_try_umount $P3/dex2oat 1
+    $SUSFS_BIN add_try_umount $P3/dex2oat32 1
     $SUSFS_BIN add_try_umount $P3/dex2oat64 1
+fi
 
 # general paths
 $SUSFS_BIN add_sus_mount /
@@ -89,24 +92,19 @@ if [ -z $VBMETASIZE ]; then
         VBMETASIZE="9152"
     fi
 fi
-$RESPROP_BIN -n ro.boot.vbmeta.size $VBMETASIZE
+
+$RESPROP_BIN -n ro.boot.flash.locked 1
+$RESPROP_BIN -n ro.boot.vbmeta.avb_version 1.0
+$RESPROP_BIN -n ro.boot.vbmeta.device_state locked
 # https://android.googlesource.com/platform/external/avb/+/88b13e12a0ebe3c5195dbb5f48ba00ec896d1517
 $RESPROP_BIN -n ro.boot.vbmeta.digest $(dd if=/dev/block/by-name/vbmeta bs=1 count=$VBMETASIZE 2>/dev/null | sha256sum | awk '{print $1}')
 $RESPROP_BIN -n ro.boot.vbmeta.hash_alg sha256
-$RESPROP_BIN -n ro.boot.vbmeta.avb_version 1.0
-if [[ "$(getprop ro.unica.version | cut -d'-' -f1)" < "2.5.5" ]]; then
-    # kanged from un1ca
-    $RESPROP_BIN -n ro.boot.vbmeta.device_state locked
-    $RESPROP_BIN -n ro.boot.flash.locked 1
-    $RESPROP_BIN -n ro.boot.verifiedbootstate green
-    $RESPROP_BIN -n ro.boot.veritymode enforcing
-    $RESPROP_BIN -n ro.boot.warranty_bit 0
-fi
 $RESPROP_BIN -n ro.boot.vbmeta.invalidate_on_error yes
+$RESPROP_BIN -n ro.boot.vbmeta.size $VBMETASIZE
+$RESPROP_BIN -n ro.boot.verifiedbootstate green
+$RESPROP_BIN -n ro.boot.veritymode enforcing
+$RESPROP_BIN -n ro.boot.warranty_bit 0
 
-# fucking youtube...
-# have to find the randomised path first
-# modify package name for music or other revanced apps, this is for main youtube app
 youtube=""
 timeout=30
 elapsed=0
